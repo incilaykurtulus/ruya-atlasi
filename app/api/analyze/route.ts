@@ -8,6 +8,8 @@ type DreamResult = {
   disclaimer: string;
 };
 
+import { normalizeEmotionPercentages } from "../../emotion-utils";
+
 const disclaimer = "Bu yorum kişisel farkındalık ve eğlence amaçlıdır; tıbbi ya da psikolojik değerlendirme yerine geçmez.";
 
 function demoAnalysis(dream: string): DreamResult & { demo: true } {
@@ -26,9 +28,9 @@ function demoAnalysis(dream: string): DreamResult & { demo: true } {
     title: "Bir eşiğin kıyısında",
     summary: "Bu rüya, iç dünyanda beliren bir değişim ihtiyacını ve bu değişime yaklaşırken hissettiğin merakla belirsizliği aynı sahnede buluşturuyor olabilir.",
     emotionalTheme: normalized.includes("kork") ? "Belirsizlikle yüzleşme" : "Merak ve içsel arayış",
-    emotionSpectrum: normalized.includes("kork")
+    emotionSpectrum: normalizeEmotionPercentages(normalized.includes("kork")
       ? [{ emotion: "Korku", intensity: 82 }, { emotion: "Merak", intensity: 67 }, { emotion: "Umut", intensity: 43 }]
-      : [{ emotion: "Merak", intensity: 86 }, { emotion: "Huzur", intensity: 61 }, { emotion: "Belirsizlik", intensity: 48 }],
+      : [{ emotion: "Merak", intensity: 86 }, { emotion: "Huzur", intensity: 61 }, { emotion: "Belirsizlik", intensity: 48 }]),
     symbols: symbols.map(({ symbol, meaning }) => ({ symbol, meaning })),
     reflection: "Hayatımda şu an beni hem heyecanlandıran hem de yönümü sorgulatan hangi yeni kapı var?",
     disclaimer,
@@ -48,10 +50,7 @@ function parseAnalysis(text: string) {
   const parsed = JSON.parse(cleanJson(text)) as DreamResult;
   if (!parsed.title || !parsed.summary || !Array.isArray(parsed.symbols)) throw new Error("Invalid analysis shape");
   if (Array.isArray(parsed.emotionSpectrum)) {
-    parsed.emotionSpectrum = parsed.emotionSpectrum
-      .filter((item) => item && typeof item.emotion === "string")
-      .slice(0, 5)
-      .map((item) => ({ emotion: item.emotion.slice(0, 40), intensity: Math.max(10, Math.min(100, Number(item.intensity) || 50)) }));
+    parsed.emotionSpectrum = normalizeEmotionPercentages(parsed.emotionSpectrum);
   }
   parsed.disclaimer = parsed.disclaimer || disclaimer;
   return parsed;
@@ -69,7 +68,7 @@ export async function POST(request: Request) {
     if (dream.length < 3) return Response.json({ error: "Rüya metni en az 3 karakter olmalı." }, { status: 400 });
     if (dream.length > 3000) return Response.json({ error: "Rüya metni 3000 karakteri geçemez." }, { status: 400 });
 
-    const prompt = `Sen dikkatli, şefkatli ve sembolik düşünen bir rüya yorumcususun. Rüyaları kehanet, teşhis veya kesin gerçek olarak sunma. Türkçe yanıt ver. Aşağıdaki rüyayı duygular, imgeler ve kişinin kendi yaşamıyla kurabileceği olası bağlantılar açısından yorumla. Kullanıcının seçtiği duygu varsa yoruma doğal biçimde dahil et ama bu duyguyu kesin bir gerçek gibi sunma. Kısa rüyalarda olmayan ayrıntıları uydurma. Tam olarak 3 önemli sembol seç. Her sembolü rüyadaki bağlamla ilişkilendir. Rüyada hissedilen 3 ila 5 farklı duyguyu belirle ve her biri için 10-100 arasında göreli bir yoğunluk ver. Yalnızca geçerli JSON döndür; markdown kullanma. Şema: {"title":"kısa şiirsel başlık","summary":"3-4 cümle bütünsel ve kişiye dönük yorum","emotionalTheme":"kısa baskın duygu veya tema","emotionSpectrum":[{"emotion":"duygu adı","intensity":85}],"symbols":[{"symbol":"sembol adı","meaning":"2 cümlelik olasılıklı ve nazik yorum"}],"reflection":"kişinin kendine sorabileceği tek güçlü soru","disclaimer":"${disclaimer}"}\n\nKullanıcının seçtiği duygu: ${mood || "Belirtilmedi"}\n\nRüya:\n${dream}`;
+    const prompt = `Sen dikkatli, şefkatli ve sembolik düşünen bir rüya yorumcususun. Rüyaları kehanet, teşhis veya kesin gerçek olarak sunma. Türkçe yanıt ver. Aşağıdaki rüyayı duygular, imgeler ve kişinin kendi yaşamıyla kurabileceği olası bağlantılar açısından yorumla. Kullanıcının seçtiği duygu varsa yoruma doğal biçimde dahil et ama bu duyguyu kesin bir gerçek gibi sunma. Kısa rüyalarda olmayan ayrıntıları uydurma. Tam olarak 3 önemli sembol seç. Her sembolü rüyadaki bağlamla ilişkilendir. Rüyada hissedilen 3 ila 5 farklı duyguyu belirle. Her duyguya tam sayı bir yüzde ver ve emotionSpectrum içindeki bütün intensity değerlerinin toplamı tam olarak 100 olsun. Yalnızca geçerli JSON döndür; markdown kullanma. Şema: {"title":"kısa şiirsel başlık","summary":"3-4 cümle bütünsel ve kişiye dönük yorum","emotionalTheme":"kısa baskın duygu veya tema","emotionSpectrum":[{"emotion":"duygu adı","intensity":35}],"symbols":[{"symbol":"sembol adı","meaning":"2 cümlelik olasılıklı ve nazik yorum"}],"reflection":"kişinin kendine sorabileceği tek güçlü soru","disclaimer":"${disclaimer}"}\n\nKullanıcının seçtiği duygu: ${mood || "Belirtilmedi"}\n\nRüya:\n${dream}`;
 
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey) {

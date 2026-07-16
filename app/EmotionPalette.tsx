@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { DreamAnalysis } from "./dream-types";
+import { normalizeEmotionPercentages } from "./emotion-utils";
 
 const colorFamilies = [
   { keys: ["aşk", "sevgi", "tutku"], colors: ["#ff5c8a", "#ff8fab", "#ffc2d1", "#ff758f"] },
@@ -32,7 +33,7 @@ export default function EmotionPalette({ analysis, mood }: { analysis: DreamAnal
     ...(mood && !analysis.emotionalTheme.toLocaleLowerCase("tr-TR").includes(mood.toLocaleLowerCase("tr-TR")) ? [{ emotion: mood, intensity: 64 }] : []),
     { emotion: "Bilinçaltı", intensity: 42 },
   ];
-  const emotions = (analysis.emotionSpectrum?.length ? analysis.emotionSpectrum : fallback).slice(0, 5);
+  const emotions = normalizeEmotionPercentages(analysis.emotionSpectrum?.length ? analysis.emotionSpectrum : fallback);
   const allColors = emotions.flatMap((item) => colorsFor(item.emotion).slice(0, 3));
   const dominant = [...emotions].sort((a, b) => b.intensity - a.intensity)[0];
   const spectrum = `conic-gradient(from 210deg, ${allColors.join(",")})`;
@@ -87,7 +88,7 @@ export default function EmotionPalette({ analysis, mood }: { analysis: DreamAnal
 
       <div className="emotion-meter-list">
         {emotions.map((item, index) => {
-          const intensity = Math.max(10, Math.min(100, item.intensity));
+          const intensity = Math.max(0, Math.min(100, item.intensity));
           const colors = colorsFor(item.emotion);
           return (
             <div className="emotion-meter" key={`${item.emotion}-${index}`}>
@@ -100,7 +101,7 @@ export default function EmotionPalette({ analysis, mood }: { analysis: DreamAnal
           );
         })}
       </div>
-      <small className="palette-note">Yoğunluklar kesin bir ölçüm değil, rüya anlatındaki duygusal ipuçlarının görsel karşılığıdır.</small>
+      <small className="palette-note">Duyguların yüzdeleri toplamda tam %100 olacak şekilde dağıtılır; bu dağılım kesin bir ölçüm değil, rüya anlatındaki duygusal ipuçlarının görsel karşılığıdır.</small>
     </article>
   );
 }
