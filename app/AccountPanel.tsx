@@ -96,7 +96,7 @@ export default function AccountPanel({ onAuthChange, gate = false }: { onAuthCha
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!client || password.length < 6) return;
+    if (!client || !password || (mode === "signup" && password.length < 10)) return;
     setLoading(true);
     setMessage("");
     setCanResetPassword(false);
@@ -138,8 +138,8 @@ export default function AccountPanel({ onAuthChange, gate = false }: { onAuthCha
 
   async function updatePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!client || password.length < 6) {
-      setMessage("Yeni şifren en az 6 karakter olmalı.");
+    if (!client || password.length < 10) {
+      setMessage("Yeni şifren en az 10 karakter olmalı.");
       return;
     }
     if (password !== confirmPassword) {
@@ -202,8 +202,8 @@ export default function AccountPanel({ onAuthChange, gate = false }: { onAuthCha
       <h1 id="account-title">Yeni şifreni oluştur</h1>
       <p className="account-intro">Hesabın için hatırlayabileceğin güçlü bir şifre belirle.</p>
       <form onSubmit={updatePassword} className="account-form recovery-form">
-        <label>Yeni şifre<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={6} required placeholder="En az 6 karakter" /></label>
-        <label>Yeni şifre tekrar<input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={6} required placeholder="Şifreni tekrar yaz" /></label>
+        <label>Yeni şifre<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={10} required placeholder="En az 10 karakter" /></label>
+        <label>Yeni şifre tekrar<input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={10} required placeholder="Şifreni tekrar yaz" /></label>
         {message && <p className="account-message" role="status">{message}</p>}
         <button className="account-submit" type="submit" disabled={loading || !client}>{loading ? "Şifren yenileniyor..." : "Yeni şifremi kaydet"}</button>
       </form>
@@ -220,7 +220,7 @@ export default function AccountPanel({ onAuthChange, gate = false }: { onAuthCha
       <div className="account-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => { setMode("signin"); setMessage(""); setCanResetPassword(false); }}>Giriş yap</button><button type="button" className={mode === "signup" ? "active" : ""} onClick={() => { setMode("signup"); setMessage(""); setCanResetPassword(false); }}>Kayıt ol</button></div>
       <form onSubmit={submit} className="account-form">
         <label>E-posta<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required placeholder="ornek@email.com" /></label>
-        <label>Şifre<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={6} required placeholder="En az 6 karakter" /></label>
+        <label>Şifre<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={mode === "signup" ? 10 : 1} required placeholder={mode === "signup" ? "En az 10 karakter" : "Şifren"} /></label>
         {mode === "signin" && <label className="remember-option"><input type="checkbox" checked={rememberDevice} onChange={(event) => changeRememberDevice(event.target.checked)} /><span><strong>Bu cihazda açık kalsın</strong><small>Bu cihazı kullandığında tekrar şifre istemez.</small></span></label>}
         {message && <p className="account-message" role="status">{message}</p>}
         {mode === "signin" && canResetPassword && <button className="reset-password-button" type="button" disabled={loading || !client} onClick={requestPasswordReset}>Anahtar Yeni şifre bağlantısı gönder</button>}

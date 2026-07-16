@@ -8,6 +8,44 @@ type RateLimitOptions = {
   windowSeconds?: number;
 };
 
+type JsonRequestResult<T> = { data: T; response?: never } | { data?: never; response: Response };
+
+export async function readJsonRequest<T>(request: Request, maxBytes = 32_768): Promise<JsonRequestResult<T>> {
+  const contentType = request.headers.get("content-type")?.toLowerCase() || "";
+  if (!contentType.startsWith("application/json")) {
+    return { response: Response.json({ error: "İstek JSON biçiminde olmalı." }, { status: 415 }) };
+  }
+  const declaredLength = Number(request.headers.get("content-length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    return { response: Response.json({ error: "İstek boyutu izin verilen sınırı aşıyor." }, { status: 413 }) };
+  }
+  const reader = request.body?.getReader();
+  if (!reader) return { response: Response.json({ error: "İstek gövdesi eksik." }, { status: 400 }) };
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return { response: Response.json({ error: "İstek boyutu izin verilen sınırı aşıyor." }, { status: 413 }) };
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return { data: JSON.parse(new TextDecoder().decode(bytes)) as T };
+  } catch {
+    return { response: Response.json({ error: "Geçersiz JSON isteği." }, { status: 400 }) };
+  }
+}
+
 async function fingerprint(value: string) {
   const bytes = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", bytes);

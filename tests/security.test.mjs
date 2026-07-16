@@ -6,12 +6,13 @@ const root = new URL("../", import.meta.url);
 const source = (path) => readFile(new URL(path, root), "utf8");
 
 test("protects user-owned dreams and authenticated AI requests", async () => {
-  const [page, auth, security, analyze, reflection] = await Promise.all([
+  const [page, auth, security, analyze, reflection, dreams] = await Promise.all([
     source("app/page.tsx"),
     source("app/supabase-auth.ts"),
     source("app/security.ts"),
     source("app/api/analyze/route.ts"),
     source("app/api/reflection-insight/route.ts"),
+    source("app/api/dreams/route.ts"),
   ]);
 
   assert.doesNotMatch(auth, /if\s*\(!deviceId\.startsWith\("user-"\)\)\s*return true/);
@@ -20,8 +21,13 @@ test("protects user-owned dreams and authenticated AI requests", async () => {
   assert.doesNotMatch(page, /\/api\/dreams\/claim/);
   assert.match(security, /status:\s*429/);
   assert.match(security, /CF-Connecting-IP/);
+  assert.match(security, /status:\s*413/);
+  assert.match(security, /content-type/);
   assert.match(analyze, /authorizeAiRequest/);
   assert.match(reflection, /authorizeAiRequest/);
+  assert.match(dreams, /action: "dream-read"/);
+  assert.match(dreams, /action: "dream-write"/);
+  assert.match(dreams, /status: 403/);
 });
 
 test("adds browser security headers and keeps secrets out of source", async () => {

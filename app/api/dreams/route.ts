@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { dreams } from "../../../db/schema";
-import { canAccessDreamOwner } from "../../supabase-auth";
+import { authorizeAiRequest, readJsonRequest } from "../../security";
 
 const validDeviceId = (value: string) => /^[a-zA-Z0-9-]{16,80}$/.test(value);
 
@@ -11,7 +11,9 @@ export async function GET(request: Request) {
     const deviceId = searchParams.get("deviceId") || "";
     const month = searchParams.get("month") || "";
     if (!validDeviceId(deviceId)) return Response.json({ error: "Geçersiz cihaz kimliği." }, { status: 400 });
-    if (!(await canAccessDreamOwner(request, deviceId))) return Response.json({ error: "Bu rüya defterine erişim iznin yok." }, { status: 401 });
+    const authorization = await authorizeAiRequest(request, { action: "dream-read", userLimit: 300, ipLimit: 600 });
+    if (authorization.response) return authorization.response;
+    if (deviceId !== `user-${authorization.user.id}`) return Response.json({ error: "Bu rüya defterine erişim iznin yok." }, { status: 403 });
 
     const db = getDb();
     const conditions = [eq(dreams.deviceId, deviceId)];
@@ -30,7 +32,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as Record<string, unknown>;
+    const parsed = await readJsonRequest<Record<string, unknown>>(request, 32_768);
+    if (parsed.response) return parsed.response;
+    const body = parsed.data;
     const id = typeof body.id === "string" ? body.id.slice(0, 80) : "";
     const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";
     const dream = typeof body.dream === "string" ? body.dream.trim().slice(0, 3000) : "";
@@ -39,7 +43,9 @@ export async function POST(request: Request) {
     const createdAt = typeof body.createdAt === "string" && !Number.isNaN(Date.parse(body.createdAt)) ? body.createdAt : new Date().toISOString();
     const analysis = JSON.stringify(body.analysis || {}).slice(0, 12000);
     if (!id || !validDeviceId(deviceId) || dream.length < 3) return Response.json({ error: "Rüya kaydı eksik." }, { status: 400 });
-    if (!(await canAccessDreamOwner(request, deviceId))) return Response.json({ error: "Oturum doğrulanamadı." }, { status: 401 });
+    const authorization = await authorizeAiRequest(request, { action: "dream-write", userLimit: 120, ipLimit: 240 });
+    if (authorization.response) return authorization.response;
+    if (deviceId !== `user-${authorization.user.id}`) return Response.json({ error: "Bu hesaba rüya kaydetme iznin yok." }, { status: 403 });
 
     const db = getDb();
     await db.insert(dreams).values({ id, deviceId, dream, mood, title, analysis, createdAt }).onConflictDoNothing();

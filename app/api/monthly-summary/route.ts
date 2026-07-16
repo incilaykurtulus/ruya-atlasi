@@ -2,8 +2,7 @@ import { and, eq, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { dreams, monthlySummaries } from "../../../db/schema";
 import type { DreamAnalysis, MonthlySummary } from "../../dream-types";
-import { canAccessDreamOwner } from "../../supabase-auth";
-import { authorizeAiRequest } from "../../security";
+import { authorizeAiRequest, readJsonRequest } from "../../security";
 
 const mostCommon = (values: string[], fallback: string) => {
   const counts = new Map<string, { label: string; count: number }>();
@@ -17,11 +16,15 @@ const mostCommon = (values: string[], fallback: string) => {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { deviceId?: unknown; month?: unknown; refresh?: unknown };
+    const parsed = await readJsonRequest<{ deviceId?: unknown; month?: unknown; refresh?: unknown }>(request, 8_192);
+    if (parsed.response) return parsed.response;
+    const body = parsed.data;
     const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";
     const month = typeof body.month === "string" ? body.month : "";
     if (!/^[a-zA-Z0-9-]{16,80}$/.test(deviceId) || !/^\d{4}-\d{2}$/.test(month)) return Response.json({ error: "Özet isteği geçersiz." }, { status: 400 });
-    if (!(await canAccessDreamOwner(request, deviceId))) return Response.json({ error: "Oturum doğrulanamadı." }, { status: 401 });
+    const access = await authorizeAiRequest(request, { action: "monthly-read", userLimit: 60, ipLimit: 120 });
+    if (access.response) return access.response;
+    if (deviceId !== `user-${access.user.id}`) return Response.json({ error: "Bu hesaba ait özete erişim iznin yok." }, { status: 403 });
 
     const [year, monthNumber] = month.split("-").map(Number);
     const start = new Date(Date.UTC(year, monthNumber - 1, 1)).toISOString();

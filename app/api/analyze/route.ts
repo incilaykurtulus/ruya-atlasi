@@ -61,7 +61,9 @@ export async function POST(request: Request) {
   try {
     const authorization = await authorizeAiRequest(request, { action: "dream-analysis", userLimit: 30, ipLimit: 60 });
     if (authorization.response) return authorization.response;
-    const body = (await request.json()) as { dream?: unknown; mood?: unknown };
+    const parsed = await readJsonRequest<{ dream?: unknown; mood?: unknown }>(request, 16_384);
+    if (parsed.response) return parsed.response;
+    const body = parsed.data;
     const dream = typeof body.dream === "string" ? body.dream.trim() : "";
     const mood = typeof body.mood === "string" ? body.mood.trim().slice(0, 30) : "";
     if (dream.length < 3) return Response.json({ error: "Rüya metni en az 3 karakter olmalı." }, { status: 400 });
@@ -111,4 +113,4 @@ export async function POST(request: Request) {
     return Response.json({ error: "Rüya yorumlanırken beklenmedik bir sorun oluştu." }, { status: 500 });
   }
 }
-import { authorizeAiRequest } from "../../security";
+import { authorizeAiRequest, readJsonRequest } from "../../security";

@@ -25,7 +25,7 @@ This starter does not use `wrangler.jsonc`.
 - `vite.config.ts` simulates declared bindings for local development
 - `db/schema.ts` starts intentionally empty
 - `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+- Versioned SQL files in `drizzle/` keep database migrations reviewable and reproducible
 
 ## Workspace Auth Headers
 
