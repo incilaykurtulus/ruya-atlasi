@@ -47,7 +47,12 @@ const worker = {
 };
 
 function withSecurityHeaders(response: Response, pathname: string) {
-  const secured = new Response(response.body, response);
+  const isHtml = response.headers.get("content-type")?.toLowerCase().includes("text/html") || false;
+  const nonce = crypto.randomUUID().replaceAll("-", "");
+  const rewritten = isHtml
+    ? new HTMLRewriter().on("script", { element(element) { element.setAttribute("nonce", nonce); } }).transform(response)
+    : response;
+  const secured = new Response(rewritten.body, rewritten);
   const supabaseHost = "wraothjuzrgufabnmwxp.supabase.co";
   secured.headers.set("Content-Security-Policy", [
     "default-src 'self'",
@@ -55,7 +60,7 @@ function withSecurityHeaders(response: Response, pathname: string) {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    `script-src 'self' 'nonce-${nonce}'`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",

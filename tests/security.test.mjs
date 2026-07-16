@@ -38,6 +38,9 @@ test("adds browser security headers and keeps secrets out of source", async () =
   ]);
 
   assert.match(worker, /Content-Security-Policy/);
+  assert.match(worker, /HTMLRewriter/);
+  assert.match(worker, /script-src 'self' 'nonce-/);
+  assert.doesNotMatch(worker, /script-src 'self' 'unsafe-inline'/);
   assert.match(worker, /frame-ancestors 'none'/);
   assert.match(worker, /X-Content-Type-Options/);
   assert.match(worker, /Referrer-Policy/);
