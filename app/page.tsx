@@ -275,6 +275,10 @@ export default function Home() {
     <main>
       <div className="sky-art" aria-hidden="true" />
       <div className="sky" aria-hidden="true">
+        <span className="star-field star-field-far" />
+        <span className="star-field star-field-near" />
+        <span className="nebula nebula-one" />
+        <span className="nebula nebula-two" />
         <span className="star star-one" />
         <span className="star star-two" />
         <span className="star star-three" />
