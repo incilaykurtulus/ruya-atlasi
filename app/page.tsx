@@ -85,21 +85,7 @@ export default function Home() {
             createdAt: item.createdAt || new Date().toISOString(),
           }));
 
-        const response = await fetch(`/api/dreams?deviceId=${encodeURIComponent(currentDeviceId)}`);
-        const remoteItems = response.ok ? ((await response.json()) as StoredDream[]) : [];
-        const remoteIds = new Set(remoteItems.map((item) => item.id));
-        await Promise.all(
-          migratedItems
-            .filter((item) => !remoteIds.has(item.id))
-            .map((item) => fetch("/api/dreams", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(item),
-            })),
-        );
-
-        const merged = [...remoteItems, ...migratedItems.filter((item) => !remoteIds.has(item.id))]
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        const merged = migratedItems.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         if (!active) return;
         setHistory(merged);
         window.localStorage.setItem("ruya-atlasi-history", JSON.stringify(merged));
@@ -120,14 +106,23 @@ export default function Home() {
     const headers: Record<string, string> = nextAccount ? { Authorization: `Bearer ${nextAccount.accessToken}` } : {};
     try {
       if (nextAccount) {
-        await fetch("/api/dreams/claim", { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ deviceId: localDeviceId }) });
-        window.localStorage.removeItem("ruya-atlasi-history");
+        const saved = window.localStorage.getItem("ruya-atlasi-history");
+        const localEntries = saved ? (JSON.parse(saved) as StoredDream[]) : [];
+        const migrationResponses = await Promise.all(localEntries.map((entry) => fetch("/api/dreams", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ ...entry, deviceId: ownerId }),
+        })));
+        if (migrationResponses.every((response) => response.ok)) window.localStorage.removeItem("ruya-atlasi-history");
+      } else {
+        const saved = window.localStorage.getItem("ruya-atlasi-history");
+        setHistory(saved ? (JSON.parse(saved) as StoredDream[]) : []);
+        return;
       }
       const response = await fetch(`/api/dreams?deviceId=${encodeURIComponent(ownerId)}`, { headers });
       if (!response.ok) return;
       const entries = (await response.json()) as StoredDream[];
       setHistory(entries);
-      if (!nextAccount) window.localStorage.setItem("ruya-atlasi-history", JSON.stringify(entries));
     } catch {
       // Oturum yenilenirken mevcut ekran korunur.
     }
@@ -150,7 +145,7 @@ export default function Home() {
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${account.accessToken}` },
         body: JSON.stringify({ dream: dream.trim(), mood }),
       });
       const data = await response.json();
@@ -222,7 +217,7 @@ export default function Home() {
     try {
       const response = await fetch("/api/reflection-insight", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${account.accessToken}` },
         body: JSON.stringify({
           dream: dream.trim(),
           question: analysis.reflection,

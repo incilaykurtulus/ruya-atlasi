@@ -3,6 +3,7 @@ import { getDb } from "../../../db";
 import { dreams, monthlySummaries } from "../../../db/schema";
 import type { DreamAnalysis, MonthlySummary } from "../../dream-types";
 import { canAccessDreamOwner } from "../../supabase-auth";
+import { authorizeAiRequest } from "../../security";
 
 const mostCommon = (values: string[], fallback: string) => {
   const counts = new Map<string, { label: string; count: number }>();
@@ -42,6 +43,8 @@ export async function POST(request: Request) {
     let ai = { headline: `${rows.length} rüyalık bir ay`, narrative: `Bu ay ${rows.length} rüya kaydettin. En sık görülen sembol ${topSymbol}, en baskın duygu ise ${topMood}.`, pattern: "Rüyaların bu ayki ortak yönlerini kendi yaşamındaki gelişmelerle birlikte düşünmek faydalı olabilir.", reflection: "Bu ayın rüyaları sana en çok hangi ihtiyacını hatırlatıyor?" };
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
+      const authorization = await authorizeAiRequest(request, { action: "monthly-summary", userLimit: 12, ipLimit: 30 });
+      if (authorization.response) return authorization.response;
       const prompt = `Aşağıdaki aylık rüya günlüğü istatistiklerinden Türkçe, nazik ve kesin hüküm vermeyen bir aylık özet oluştur. Yalnızca geçerli JSON döndür. Şema: {"headline":"kısa başlık","narrative":"3 cümlelik özet","pattern":"tekrarlayan tema hakkında 1-2 cümle","reflection":"tek düşündürücü soru"}. İstatistikler: ${JSON.stringify({ ...base, entries: rows.map((row, index) => ({ title: row.title, mood: row.mood, symbols: analyses[index]?.symbols?.map((item) => item.symbol) || [] })) })}`;
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_MODEL || "gemini-3.1-flash-lite")}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: .55 } }) });
       if (response.ok) {

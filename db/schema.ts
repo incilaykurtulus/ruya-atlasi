@@ -23,3 +23,11 @@ export const monthlySummaries = sqliteTable("monthly_summaries", {
 }, (table) => [
   index("monthly_summaries_device_month_idx").on(table.deviceId, table.month),
 ]);
+
+export const apiRateLimits = sqliteTable("api_rate_limits", {
+  id: text("id").primaryKey(),
+  requestCount: integer("request_count").notNull().default(1),
+  expiresAt: integer("expires_at").notNull(),
+}, (table) => [
+  index("api_rate_limits_expires_idx").on(table.expiresAt),
+]);

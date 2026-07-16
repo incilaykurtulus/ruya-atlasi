@@ -15,7 +15,6 @@ export async function getSupabaseUser(request: Request) {
 }
 
 export async function canAccessDreamOwner(request: Request, deviceId: string) {
-  if (!deviceId.startsWith("user-")) return true;
   const user = await getSupabaseUser(request);
   return Boolean(user && deviceId === `user-${user.id}`);
 }

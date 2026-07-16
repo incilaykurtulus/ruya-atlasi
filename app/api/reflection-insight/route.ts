@@ -36,6 +36,8 @@ function parseInsight(text: string): ReflectionInsight {
 
 export async function POST(request: Request) {
   try {
+    const authorization = await authorizeAiRequest(request, { action: "reflection", userLimit: 40, ipLimit: 80 });
+    if (authorization.response) return authorization.response;
     const body = (await request.json()) as Record<string, unknown>;
     const dream = typeof body.dream === "string" ? body.dream.trim().slice(0, 3000) : "";
     const question = typeof body.question === "string" ? body.question.trim().slice(0, 700) : "";
@@ -89,3 +91,4 @@ Kullanıcının cevabı: ${answer}`;
     return Response.json({ error: "Yanıtın değerlendirilirken beklenmedik bir sorun oluştu." }, { status: 500 });
   }
 }
+import { authorizeAiRequest } from "../../security";

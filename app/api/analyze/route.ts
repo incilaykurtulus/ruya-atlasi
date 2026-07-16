@@ -59,6 +59,8 @@ function parseAnalysis(text: string) {
 
 export async function POST(request: Request) {
   try {
+    const authorization = await authorizeAiRequest(request, { action: "dream-analysis", userLimit: 30, ipLimit: 60 });
+    if (authorization.response) return authorization.response;
     const body = (await request.json()) as { dream?: unknown; mood?: unknown };
     const dream = typeof body.dream === "string" ? body.dream.trim() : "";
     const mood = typeof body.mood === "string" ? body.mood.trim().slice(0, 30) : "";
@@ -109,3 +111,4 @@ export async function POST(request: Request) {
     return Response.json({ error: "Rüya yorumlanırken beklenmedik bir sorun oluştu." }, { status: 500 });
   }
 }
+import { authorizeAiRequest } from "../../security";
