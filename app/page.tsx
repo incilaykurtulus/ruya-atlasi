@@ -5,6 +5,7 @@ import AccountPanel, { type DreamAccount } from "./AccountPanel";
 import DreamCalendar from "./DreamCalendar";
 import EmotionPalette from "./EmotionPalette";
 import type { DreamAnalysis, StoredDream } from "./dream-types";
+import { getDailyTalismanMessage } from "./talisman-message";
 
 const sampleDream =
   "Gece vakti ay ışığıyla aydınlanan eski bir ormanda yürüyordum. Önümde parlak mavi bir kapı belirdi. Kapıyı açınca uçsuz bucaksız bir deniz ve gökyüzünde süzülen beyaz bir kuş gördüm. Korkmuyordum ama nereye gideceğimi bilmiyordum.";
@@ -58,6 +59,7 @@ export default function Home() {
   const [reflectionLoading, setReflectionLoading] = useState(false);
   const [reflectionError, setReflectionError] = useState("");
   const [guideOpen, setGuideOpen] = useState(false);
+  const [dailyDateKey, setDailyDateKey] = useState("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function Home() {
 
     async function loadDreamDiary() {
       try {
+        setDailyDateKey(new Intl.DateTimeFormat("en-CA").format(new Date()));
         const existingDeviceId = window.localStorage.getItem("ruya-atlasi-device-id");
         const currentDeviceId = existingDeviceId || crypto.randomUUID();
         if (!existingDeviceId) window.localStorage.setItem("ruya-atlasi-device-id", currentDeviceId);
@@ -479,7 +482,11 @@ export default function Home() {
             <button type="button" className="dream-guide-close" onClick={() => setGuideOpen(false)} aria-label="Rüya Rehberini kapat">×</button>
             <span className="result-label">RÜYA REHBERİ</span>
             <h2>Merhaba, ben Tılsım ☾</h2>
-            <p>Rüyanı yorumlarken ayrıntıları kusursuz hatırlaman gerekmez. Mekânı, kişileri ve sende kalan en güçlü duyguyu yazman yeterli.</p>
+            <section className="talisman-daily-message" aria-label="Tılsım'ın günlük mesajı">
+              <span><i aria-hidden="true">✦</i> BUGÜNÜN MESAJI</span>
+              <p>“{getDailyTalismanMessage(dailyDateKey, history)}”</p>
+            </section>
+            <p className="dream-guide-intro">Rüyanı yorumlarken ayrıntıları kusursuz hatırlaman gerekmez. Mekânı, kişileri ve sende kalan en güçlü duyguyu yazman yeterli.</p>
             <div className="dream-guide-tips">
               <span><i>01</i> Aklında kalan sembolü söyle</span>
               <span><i>02</i> Rüyadaki baskın duyguyu seç</span>
