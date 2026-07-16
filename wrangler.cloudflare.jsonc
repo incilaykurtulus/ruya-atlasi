@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ruya-atlasi",
+  "main": "./dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "no_bundle": true,
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": ["**/*.js", "**/*.mjs"]
+    }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/client",
+    "run_worker_first": ["/", "/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ruya-atlasi-db",
+      "database_id": "418f85f3-3ad5-4356-8b61-34716a7a1e76"
+    }
+  ],
+  "vars": {
+    "SUPABASE_URL": "https://wraothjuzrgufabnmwxp.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_qfjzgCw-ugewUj4P3DcH6Q_ayBdCT1z",
+    "GEMINI_MODEL": "gemini-3.1-flash-lite"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
