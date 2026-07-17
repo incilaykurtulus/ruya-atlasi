@@ -6,6 +6,7 @@ import DreamCalendar from "./DreamCalendar";
 import EmotionPalette from "./EmotionPalette";
 import type { DreamAnalysis, StoredDream } from "./dream-types";
 import { getDailyTalismanMessage } from "./talisman-message";
+import { getVoiceErrorMessage, isEmbeddedMobileBrowser } from "./voice-support";
 
 const sampleDream =
   "Gece vakti ay ışığıyla aydınlanan eski bir ormanda yürüyordum. Önümde parlak mavi bir kapı belirdi. Kapıyı açınca uçsuz bucaksız bir deniz ve gökyüzünde süzülen beyaz bir kuş gördüm. Korkmuyordum ama nereye gideceğimi bilmiyordum.";
@@ -13,6 +14,7 @@ const sampleDream =
 const moods = ["Merak", "Korku", "Huzur", "Hüzün", "Şaşkınlık", "Aşk"];
 
 type SpeechResultEvent = { results: ArrayLike<{ 0: { transcript: string } }> };
+type SpeechErrorEvent = { error?: string };
 type SpeechRecognitionLike = {
   lang: string;
   continuous: boolean;
@@ -20,7 +22,7 @@ type SpeechRecognitionLike = {
   start: () => void;
   stop: () => void;
   onresult: ((event: SpeechResultEvent) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechErrorEvent) => void) | null;
   onend: (() => void) | null;
 };
 
@@ -54,6 +56,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
+  const [voiceBrowserHelp, setVoiceBrowserHelp] = useState(false);
   const [reflectionAnswer, setReflectionAnswer] = useState("");
   const [reflectionInsight, setReflectionInsight] = useState<ReflectionInsight | null>(null);
   const [reflectionLoading, setReflectionLoading] = useState(false);
@@ -246,9 +249,16 @@ export default function Home() {
       return;
     }
 
+    if (isEmbeddedMobileBrowser(window.navigator.userAgent)) {
+      setVoiceError("WhatsApp içindeki tarayıcı sesli anlatımı desteklemiyor. Sağ üstteki menüden ‘Safari'de Aç’ seçeneğini kullan.");
+      setVoiceBrowserHelp(true);
+      return;
+    }
+
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      setVoiceError("Bu tarayıcı sesli anlatımı desteklemiyor. Chrome ile deneyebilirsin.");
+      setVoiceError("Bu tarayıcı sesli anlatımı desteklemiyor. Sayfayı Safari veya Chrome'da açabilirsin.");
+      setVoiceBrowserHelp(true);
       return;
     }
 
@@ -261,15 +271,23 @@ export default function Home() {
       const spoken = Array.from(event.results).map((result) => result[0]?.transcript || "").join(" ").trim();
       setDream(`${startingDream}${startingDream && spoken ? " " : ""}${spoken}`.slice(0, 3000));
     };
-    recognition.onerror = () => {
-      setVoiceError("Ses alınamadı. Mikrofon iznini kontrol edip tekrar deneyebilirsin.");
+    recognition.onerror = (event) => {
+      if (event.error !== "aborted") setVoiceError(getVoiceErrorMessage(event.error || "unknown"));
+      setVoiceBrowserHelp(event.error === "network" || event.error === "service-not-allowed");
       setListening(false);
     };
     recognition.onend = () => setListening(false);
     recognitionRef.current = recognition;
     setVoiceError("");
+    setVoiceBrowserHelp(false);
     setListening(true);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+      setVoiceBrowserHelp(true);
+      setVoiceError(getVoiceErrorMessage("unknown"));
+    }
   }
 
   if (!account) return <AccountPanel gate onAuthChange={handleAuthChange} />;
@@ -347,7 +365,18 @@ export default function Home() {
               {listening ? "Dinlemeyi bitir" : "Sesli anlat"}
             </button>
           </div>
-          {voiceError && <p className="voice-error" role="alert">{voiceError}</p>}
+          {voiceError && (
+            <div className="voice-error" role="alert">
+              <span>{voiceError}</span>
+              {voiceBrowserHelp && (
+                <button type="button" onClick={async () => {
+                  await navigator.clipboard.writeText(window.location.href);
+                  setVoiceError("Bağlantı kopyalandı. Safari veya Chrome'a yapıştırarak sesli anlatımı kullanabilirsin.");
+                  setVoiceBrowserHelp(false);
+                }}>Bağlantıyı kopyala</button>
+              )}
+            </div>
+          )}
 
           <fieldset className="mood-fieldset" disabled={loading}>
             <legend>Rüyada en çok ne hissettin? <span>İsteğe bağlı</span></legend>
